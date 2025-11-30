@@ -1,0 +1,295 @@
+services:
+  redis-node-1:
+    image: redis:7.4
+    container_name: redis-node-1
+    command:
+      - "redis-server"
+      - "--port"
+      - "6379"
+      - "--cluster-enabled"
+      - "yes"
+      - "--cluster-config-file"
+      - "nodes.conf"
+      - "--cluster-node-timeout"
+      - "5000"
+      - "--appendonly"
+      - "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-node-1-data:/data
+    restart: unless-stopped
+
+  redis-node-2:
+    image: redis:7.4
+    container_name: redis-node-2
+    command:
+      - "redis-server"
+      - "--port"
+      - "6379"
+      - "--cluster-enabled"
+      - "yes"
+      - "--cluster-config-file"
+      - "nodes.conf"
+      - "--cluster-node-timeout"
+      - "5000"
+      - "--appendonly"
+      - "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis-node-2-data:/data
+    restart: unless-stopped
+
+  redis-node-3:
+    image: redis:7.4
+    container_name: redis-node-3
+    command:
+      - "redis-server"
+      - "--port"
+      - "6379"
+      - "--cluster-enabled"
+      - "yes"
+      - "--cluster-config-file"
+      - "nodes.conf"
+      - "--cluster-node-timeout"
+      - "5000"
+      - "--appendonly"
+      - "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis-node-3-data:/data
+    restart: unless-stopped
+
+  redis-node-4:
+    image: redis:7.4
+    container_name: redis-node-4
+    command:
+      - "redis-server"
+      - "--port"
+      - "6379"
+      - "--cluster-enabled"
+      - "yes"
+      - "--cluster-config-file"
+      - "nodes.conf"
+      - "--cluster-node-timeout"
+      - "5000"
+      - "--appendonly"
+      - "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis-node-4-data:/data
+    restart: unless-stopped
+
+  redis-node-5:
+    image: redis:7.4
+    container_name: redis-node-5
+    command:
+      - "redis-server"
+      - "--port"
+      - "6379"
+      - "--cluster-enabled"
+      - "yes"
+      - "--cluster-config-file"
+      - "nodes.conf"
+      - "--cluster-node-timeout"
+      - "5000"
+      - "--appendonly"
+      - "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis-node-5-data:/data
+    restart: unless-stopped
+
+  redis-node-6:
+    image: redis:7.4
+    container_name: redis-node-6
+    command:
+      - "redis-server"
+      - "--port"
+      - "6379"
+      - "--cluster-enabled"
+      - "yes"
+      - "--cluster-config-file"
+      - "nodes.conf"
+      - "--cluster-node-timeout"
+      - "5000"
+      - "--appendonly"
+      - "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis-node-6-data:/data
+    restart: unless-stopped
+
+  redis-cluster-init:
+    image: redis:7.4
+    container_name: redis-cluster-init
+    depends_on:
+      redis-node-1:
+        condition: service_healthy
+      redis-node-2:
+        condition: service_healthy
+      redis-node-3:
+        condition: service_healthy
+      redis-node-4:
+        condition: service_healthy
+      redis-node-5:
+        condition: service_healthy
+      redis-node-6:
+        condition: service_healthy
+    environment:
+      REDIS_CLUSTER_NODES: "redis-node-1:6379 redis-node-2:6379 redis-node-3:6379 redis-node-4:6379 redis-node-5:6379 redis-node-6:6379"
+      REDIS_CLUSTER_REPLICAS: "1"
+    volumes:
+      - ./scripts/init-redis-cluster.sh:/scripts/init-redis-cluster.sh:ro
+    entrypoint: ["/bin/sh", "-c", "/scripts/init-redis-cluster.sh"]
+    restart: "no"
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  node_exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: node_exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+  redis-exporter-1:
+    image: oliver006/redis_exporter
+    container_name: redis-exporter-1
+    command:
+      - "--redis.addr=redis-node-1:6379"
+    ports:
+      - "9121:9121"
+
+  redis-exporter-2:
+    image: oliver006/redis_exporter
+    container_name: redis-exporter-2
+    command:
+      - "--redis.addr=redis-node-2:6379"
+    ports:
+      - "9122:9121"
+
+  redis-exporter-3:
+    image: oliver006/redis_exporter
+    container_name: redis-exporter-3
+    command:
+      - "--redis.addr=redis-node-3:6379"
+    ports:
+      - "9123:9121"
+
+  redis-exporter-4:
+    image: oliver006/redis_exporter
+    container_name: redis-exporter-4
+    command:
+      - "--redis.addr=redis-node-4:6379"
+    ports:
+      - "9124:9121"
+
+  redis-exporter-5:
+    image: oliver006/redis_exporter
+    container_name: redis-exporter-5
+    command:
+      - "--redis.addr=redis-node-5:6379"
+    ports:
+      - "9125:9121"
+
+  redis-exporter-6:
+    image: oliver006/redis_exporter
+    container_name: redis-exporter-6
+    command:
+      - "--redis.addr=redis-node-6:6379"
+    ports:
+      - "9126:9121"
+
+  mysql_exporter:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: mysql_exporter
+    environment:
+      DATA_SOURCE_NAME: "exporter:exporter@tcp(host.docker.internal:3306)/"
+    ports:
+      - "9104:9104"
+    restart: unless-stopped
+
+  app1:
+    image: cache-practice-app:latest
+    container_name: cache-app-1
+    depends_on:
+      redis-cluster-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: was1
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/cache_practice
+      SPRING_DATASOURCE_USERNAME: cache_user
+      SPRING_DATASOURCE_PASSWORD: 1234
+      SPRING_DATA_REDIS_CLUSTER_NODES: redis-node-1:6379,redis-node-2:6379,redis-node-3:6379,redis-node-4:6379,redis-node-5:6379,redis-node-6:6379
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  app2:
+    image: cache-practice-app:latest
+    container_name: cache-app-2
+    depends_on:
+      redis-cluster-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: was2
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/cache_practice
+      SPRING_DATASOURCE_USERNAME: cache_user
+      SPRING_DATASOURCE_PASSWORD: 1234
+      SPRING_DATA_REDIS_CLUSTER_NODES: redis-node-1:6379,redis-node-2:6379,redis-node-3:6379,redis-node-4:6379,redis-node-5:6379,redis-node-6:6379
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+
+volumes:
+  redis-node-1-data:
+  redis-node-2-data:
+  redis-node-3-data:
+  redis-node-4-data:
+  redis-node-5-data:
+  redis-node-6-data:
+  prometheus-data:
+  grafana-data:
