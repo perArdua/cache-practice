@@ -20,7 +20,7 @@ public class CachedItemService {
     private static final Logger log = LoggerFactory.getLogger(CachedItemService.class);
 
     private static final String CACHE_NAME = "itemCache"; // RMapCache 이름
-    private static final long TTL_MS = 60_000L;           // 60초 TTL
+    private static final long TTL_MS = 30_000L;           // 30초 TTL
 
     private final ItemRepository itemRepository;
     private final RedissonClient redissonClient;
@@ -36,6 +36,12 @@ public class CachedItemService {
         }
 
         log.debug("Cache miss. id={}", id);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         Item item = itemRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Item not found. id=" + id));
