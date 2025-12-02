@@ -4,7 +4,7 @@ import com.example.cache.item.controller.dto.ItemResponse;
 import com.example.cache.item.domain.Item;
 import com.example.cache.item.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
-import org.redisson.api.RMapCache;
+import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,38 +19,40 @@ public class CachedItemService {
 
     private static final Logger log = LoggerFactory.getLogger(CachedItemService.class);
 
-    private static final String CACHE_NAME = "itemCache"; // RMapCache 이름
-    private static final long TTL_MS = 30_000L;           // 30초 TTL
+    private static final String CACHE_KEY_PREFIX = "itemCache:";
+    private static final long TTL_S = 120L;
 
     private final ItemRepository itemRepository;
     private final RedissonClient redissonClient;
 
-    @Transactional(readOnly = true)
     public ItemResponse getItem(Long id) {
-        RMapCache<Long, ItemResponse> cache = redissonClient.getMapCache(CACHE_NAME);
+        String key = buildKey(id);
+        RBucket<ItemResponse> bucket = redissonClient.getBucket(key);
 
-        ItemResponse cached = cache.get(id);
+        ItemResponse cached = bucket.get();
         if (cached != null) {
             log.debug("Cache hit. id={}", id);
             return cached;
         }
 
         log.debug("Cache miss. id={}", id);
+        return loadAndCache(id, bucket);
+    }
 
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
+    @Transactional(readOnly = true)
+    protected ItemResponse loadAndCache(Long id, RBucket<ItemResponse> bucket) {
         Item item = itemRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Item not found. id=" + id));
 
         ItemResponse response = ItemResponse.from(item);
 
-        cache.put(id, response, TTL_MS, TimeUnit.MILLISECONDS);
-        log.debug("Cache put. id={}, ttlMs={}", id, TTL_MS);
+        bucket.set(response, TTL_S, TimeUnit.SECONDS);
+        log.debug("Cache put. id={}, ttlS={}", id, TTL_S);
 
         return response;
+    }
+
+    private String buildKey(Long id) {
+        return CACHE_KEY_PREFIX + id;
     }
 }
