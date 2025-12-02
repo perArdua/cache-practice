@@ -253,6 +253,9 @@ services:
     restart: unless-stopped
 
   app1:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: cache-practice-app:latest
     container_name: cache-app-1
     depends_on:
@@ -269,6 +272,10 @@ services:
     restart: unless-stopped
 
   app2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     image: cache-practice-app:latest
     container_name: cache-app-2
     depends_on:

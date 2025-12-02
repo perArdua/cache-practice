@@ -18,8 +18,7 @@ if ($LASTEXITCODE -ne 0) {
 # 3. Docker에서 app1, app2만 재빌드 + 재시작
 Write-Host ">>> Restart Docker containers (app1, app2) with rebuild" -ForegroundColor Cyan
 
-# 먼저 docker compose 시도 (신규 문법)
-docker compose up -d --no-deps --build app1 app2
+docker compose up -d --no-deps --build --force-recreate app1 app2
 if ($LASTEXITCODE -ne 0) {
     Write-Host "docker compose failed, trying 'docker-compose'..." -ForegroundColor Yellow
     docker-compose up -d --no-deps --build app1 app2
