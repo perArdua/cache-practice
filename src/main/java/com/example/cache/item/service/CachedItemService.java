@@ -2,7 +2,6 @@ package com.example.cache.item.service;
 
 import com.example.cache.item.controller.dto.ItemResponse;
 import com.example.cache.item.domain.Item;
-import com.example.cache.item.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RMapCache;
@@ -10,7 +9,6 @@ import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.TimeUnit;
 
@@ -23,15 +21,14 @@ public class CachedItemService {
     private static final String CACHE_NAME = "itemCache";
     private static final String LOCK_PREFIX = "lock:item:";
 
-    private static final long TTL_MS = 30_000L;
-    private static final long LOCK_WAIT_MS = 300L;
-    private static final long LOCK_LEASE_MS = 1_000L;
-    private static final long SPIN_WAIT_MS = 20L;
+    private static final long TTL_MS = 30_000L;      // 캐시 TTL
+    private static final long LOCK_WAIT_MS = 300L;   // 락 대기 시간
+    private static final long LOCK_LEASE_MS = 1_000L;// 락 자동 해제 시간
+    private static final long SPIN_WAIT_MS = 20L;    // 스핀 대기 간격
 
-    private final ItemRepository itemRepository;
     private final RedissonClient redissonClient;
+    private final ItemReadService itemReadService;
 
-    @Transactional(readOnly = true)
     public ItemResponse getItem(Long id) {
         RMapCache<Long, ItemResponse> cache = redissonClient.getMapCache(CACHE_NAME);
 
@@ -60,6 +57,7 @@ public class CachedItemService {
                         log.debug("Cache filled during spin. id={}", id);
                         return cached;
                     }
+
                     try {
                         Thread.sleep(SPIN_WAIT_MS);
                     } catch (InterruptedException e) {
@@ -94,11 +92,10 @@ public class CachedItemService {
         }
     }
 
-    private ItemResponse loadAndCache(Long id, RMapCache<Long, ItemResponse> cache) {
+    protected ItemResponse loadAndCache(Long id, RMapCache<Long, ItemResponse> cache) {
         log.debug("Loading from DB. id={}", id);
 
-        Item item = itemRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found. id=" + id));
+        Item item = itemReadService.getItemOrThrow(id);
 
         ItemResponse response = ItemResponse.from(item);
 
