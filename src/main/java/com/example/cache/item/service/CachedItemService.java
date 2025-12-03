@@ -2,7 +2,6 @@ package com.example.cache.item.service;
 
 import com.example.cache.item.controller.dto.ItemResponse;
 import com.example.cache.item.domain.Item;
-import com.example.cache.item.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RMapCache;
@@ -10,7 +9,6 @@ import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.TimeUnit;
 
@@ -23,16 +21,15 @@ public class CachedItemService {
     private static final String CACHE_NAME = "itemCache";
     private static final String LOCK_PREFIX = "lock:item:";
 
-    private static final long LOGICAL_TTL_MS = 60_000L;
-    private static final long PHYSICAL_TTL_MS = LOGICAL_TTL_MS * 5;
+    private static final long LOGICAL_TTL_MS = 5_000L;
+    private static final long PHYSICAL_TTL_MS = 30_000L;
 
-    private static final long LOCK_WAIT_MS = 50L;
+    private static final long LOCK_WAIT_MS = 300L;
     private static final long LOCK_LEASE_MS = 1_000L;
 
-    private final ItemRepository itemRepository;
     private final RedissonClient redissonClient;
+    private final ItemReadService itemReadService;
 
-    @Transactional(readOnly = true)
     public ItemResponse getItem(Long id) {
         RMapCache<Long, ItemCacheEntry> cache = redissonClient.getMapCache(CACHE_NAME);
         long now = System.currentTimeMillis();
@@ -62,15 +59,16 @@ public class CachedItemService {
                 }
 
                 log.debug("Refreshing cache from DB. id={}", id);
-                Item item = itemRepository.findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("Item not found. id=" + id));
 
+                Item item = itemReadService.getItemOrThrow(id);
                 ItemResponse resp = ItemResponse.from(item);
-                long newExpireAt = System.currentTimeMillis() + LOGICAL_TTL_MS;
 
+                long newExpireAt = System.currentTimeMillis() + LOGICAL_TTL_MS;
                 ItemCacheEntry newEntry = new ItemCacheEntry(resp, newExpireAt);
+
                 cache.put(id, newEntry, PHYSICAL_TTL_MS, TimeUnit.MILLISECONDS);
-                log.debug("Cache refreshed. id={}, logicalTtlMs={}, physicalTtlMs={}", id, LOGICAL_TTL_MS, PHYSICAL_TTL_MS);
+                log.debug("Cache refreshed. id={}, logicalTtlMs={}, physicalTtlMs={}",
+                        id, LOGICAL_TTL_MS, PHYSICAL_TTL_MS);
 
                 return resp;
 
@@ -81,8 +79,8 @@ public class CachedItemService {
                 }
 
                 log.warn("No cache entry and lock not acquired. Fallback DB. id={}", id);
-                Item item = itemRepository.findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("Item not found. id=" + id));
+
+                Item item = itemReadService.getItemOrThrow(id);
                 return ItemResponse.from(item);
             }
 
@@ -100,4 +98,3 @@ public class CachedItemService {
         }
     }
 }
-
